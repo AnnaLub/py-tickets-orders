@@ -90,7 +90,7 @@ class Ticket(models.Model):
             raise error_to_rise(
                 {
                     "row": f"Row number must be in available range: (1, "
-                    f" {movie_session.cinema_hall.rows})"
+                    f"{movie_session.cinema_hall.rows})"
                 }
             )
 
