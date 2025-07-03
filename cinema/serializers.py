@@ -105,12 +105,34 @@ class TicketSerializer(serializers.ModelSerializer):
         fields = ("id", "row", "seat", "movie_session")
 
     def validate(self, attrs):
-        data = super(TicketSerializer, self).validate(attrs)
-        Ticket.validate_row_seat(attrs["row"],
-                                 attrs["seat"],
-                                 attrs["movie_session"],
-                                 serializers.ValidationError)
-        return data
+        row = attrs.get("row")
+        seat = attrs.get("seat")
+        movie_session = attrs.get("movie_session")
+
+        if not 1 <= row <= movie_session.cinema_hall.rows:
+            raise serializers.ValidationError(
+                {
+                    "row": f"Row number must be in available range: (1, "
+                    f"{movie_session.cinema_hall.rows})"
+                }
+            )
+
+        if not 1 <= seat <= movie_session.cinema_hall.seats_in_row:
+            raise serializers.ValidationError(
+                {
+                    "seat": f"Seat number must be in available range: (1, "
+                    f"{movie_session.cinema_hall.seats_in_row})"
+                }
+            )
+
+        if Ticket.objects.filter(row=row,
+                                 seat=seat,
+                                 movie_session=movie_session).exists():
+            raise serializers.ValidationError(
+                {
+                    "taken_ticket" : "This ticket is already taken."
+                }
+            )
 
 
 class TicketListSerializer(TicketSerializer):
@@ -132,6 +154,7 @@ class OrderSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             tickets_data = validated_data.pop("tickets")
             order = Order.objects.create(**validated_data)
+
             for ticket in tickets_data:
                 Ticket.objects.create(order=order, **ticket)
             return order
